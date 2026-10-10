@@ -1,0 +1,48 @@
+# SmartScreen Hélio
+
+Logiciel libre pour Windows qui pilote les petits écrans USB 3,5" **« SmartMonitor »** (USB `0483:0065`) et affiche
+en direct les températures et charges de ton PC : CPU, GPU, RAM, SSD, carte mère.
+
+![SmartScreen Hélio](docs/capture.png)
+
+## Téléchargement
+
+➡️ **[Télécharger la dernière version](../../releases/latest)** (fichier `SmartScreenHelio_Setup_1.0.exe`)
+
+Double-clic sur l'installateur : il installe le logiciel et Libre Hardware Monitor (les températures),
+crée le raccourci sur le Bureau et peut les lancer avec Windows. Windows 10 ou 11.
+
+## Aperçu
+
+![Galerie de thèmes](docs/themes.png)
+
+![Éditeur de thèmes](docs/editeur.png)
+
+## Fonctions
+- Plus de 70 thèmes (dont des thèmes animés) et un éditeur glisser-déposer 480 × 320.
+- Capteurs via Libre Hardware Monitor, avec secours Windows (CPU %, RAM, réseau).
+- Fond qui change de couleur selon la température (normal, orange dès 60 °C, rouge dès 80 °C) : option à activer.
+- Bouton « Relancer les températures », liens vers les pilotes, discret près de l'horloge.
+- Autres écrans reconnus automatiquement (non testés) : AX206, Turing, XuanFang, Kipye, WeAct.
+
+## Installation à la main
+Python 3.10+, puis `install.bat`. Ferme d'abord le logiciel d'origine de l'écran.
+
+## Vie privée et sécurité
+Le logiciel ne collecte aucune donnée personnelle et ne contacte aucun serveur : tout reste sur ton PC.
+Il n'installe aucun pilote système. Seule modification système : l'option « Lancer avec Windows » (désactivable).
+Libre Hardware Monitor doit tourner en administrateur pour lire les températures.
+
+## Limites connues
+Protocole obtenu par rétro-ingénierie. Chaque changement de thème recharge l'écran en entier
+(quelques secondes à plus de 30 s selon le thème). Testé sur un seul exemplaire d'écran : retours bienvenus (Issues).
+
+## Licence et crédits
+**GPL-3.0** (voir `LICENSE.txt`). Pilotes et compilateur de thèmes basés sur
+[mathoudebine/turing-smart-screen-python](https://github.com/mathoudebine/turing-smart-screen-python)
+et [Agentry433/turing-smart-screen-python-HIDdev2](https://github.com/Agentry433/turing-smart-screen-python-HIDdev2).
+[Libre Hardware Monitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (MPL-2.0) est installé à part.
+Aucun lien avec les fabricants des écrans.
+
+© 2026 Hélio — logiciel gratuit, sans publicité.
+Un problème, une idée ? Ouvre un ticket dans l'onglet **Issues** de ce dépôt.
