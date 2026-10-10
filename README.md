@@ -26,7 +26,9 @@ Les marques citées appartiennent à leurs propriétaires ; aucun lien avec les 
 
 ## Téléchargement
 
-➡️ **[Télécharger la dernière version](https://github.com/heliostmalo-a11y/smartscreen-helio/releases/latest)** (fichier `SmartScreenHelio_Setup_1.0.exe`)
+➡️ **[Télécharger SmartScreen Hélio (installateur Windows)](https://github.com/heliostmalo-a11y/smartscreen-helio/releases/latest/download/SmartScreenHelio_Setup_1.0.exe)** : le téléchargement démarre directement.
+
+Toutes les versions : [page des Releases](https://github.com/heliostmalo-a11y/smartscreen-helio/releases).
 
 Double-clic sur l'installateur : il installe le logiciel et Libre Hardware Monitor (les températures),
 crée le raccourci sur le Bureau et peut les lancer avec Windows. Windows 10 ou 11.
