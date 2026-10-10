@@ -5,6 +5,25 @@ en direct les températures et charges de ton PC : CPU, GPU, RAM, SSD, carte mè
 
 ![SmartScreen Hélio](docs/capture.png)
 
+## Quel écran ?
+
+![Mon écran 3,5" avec SmartScreen Hélio](docs/ecran.jpg)
+*L'écran testé, avec le thème « Basse » (températures CPU, GPU, RAM, SSD, carte mère).*
+
+Ce logiciel sert à un **mini écran PC USB de 3,5 pouces (IPS, 480 × 320)** qui affiche les températures et charges du PC.
+On le trouve en ligne sous des noms comme « 3.5in IPS USB mini écran PC, affichage température AIDA64, moniteur CPU / RAM »
+(recherche : *écran 3,5 pouces USB monitoring PC*, *mini écran température PC*, *SmartMonitor*, *USB mini display 3.5 inch AIDA64*).
+Il coûte une vingtaine d'euros, se branche en USB (pas d'alimentation externe) et vient avec un petit pied.
+
+- **Écran testé** : modèle vendu sous la marque « Hsthe Sea » (3,5" IPS, USB-C vers USB-A), identifiant USB `0483:0065`.
+- **Comment vérifier le tien** : Gestionnaire de périphériques de Windows, ton écran branché, puis propriétés du périphérique,
+  Détails, « ID de matériel » : tu dois lire `VID_0483&PID_0065`.
+- **Pourquoi ce logiciel ?** Le logiciel d'origine de ces écrans est en anglais/chinois et peu pratique ; SmartScreen Hélio le remplace
+  par un logiciel libre en français, avec galerie de thèmes, éditeur et fond qui change de couleur selon la température.
+- D'autres écrans (AX206, Turing, XuanFang, Kipye, WeAct) sont reconnus mais **non testés**.
+
+Les marques citées appartiennent à leurs propriétaires ; aucun lien avec les vendeurs ou fabricants.
+
 ## Téléchargement
 
 ➡️ **[Télécharger la dernière version](../../releases/latest)** (fichier `SmartScreenHelio_Setup_1.0.exe`)
