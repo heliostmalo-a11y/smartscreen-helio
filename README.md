@@ -31,6 +31,14 @@ Les marques citées appartiennent à leurs propriétaires ; aucun lien avec les 
 Double-clic sur l'installateur : il installe le logiciel et Libre Hardware Monitor (les températures),
 crée le raccourci sur le Bureau et peut les lancer avec Windows. Windows 10 ou 11.
 
+### Avertissement Windows à l'installation (normal)
+L'installateur n'est pas signé avec un certificat payant. Windows peut afficher **« Windows a protégé votre ordinateur »**
+et certains antivirus peuvent le signaler à tort (faux positif courant avec les programmes Python empaquetés).
+1. Clique sur **Informations complémentaires**, puis **Exécuter quand même**.
+2. Pour que les températures fonctionnent, fais un **clic droit sur l'installateur, puis « Exécuter en tant qu'administrateur »**.
+
+Le code est entièrement ouvert dans ce dépôt : tu peux le lire, ou compiler l'installateur toi-même (`packaging\build.bat`).
+
 ## Aperçu
 
 ![Galerie de thèmes](docs/themes.png)
