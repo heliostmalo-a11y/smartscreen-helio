@@ -32,6 +32,8 @@ PRESETS: list[tuple[str, str]] = [
     ("SUSEDMEM", "RAM utilisée Mo"),
     ("SFREEMEM", "RAM libre Mo"),
     ("TMOBO", "Température carte mère"),
+    ("TCCD1", "Température CPU CCD1"),
+    ("THDD1", "Température SSD / disque 1"),
     ("SNIC1DLRATE", "Réseau réception Ko/s"),
     ("SNIC1ULRATE", "Réseau envoi Ko/s"),
     ("SDSK1ACT", "Activité disque 1 %"),
@@ -127,10 +129,14 @@ class ValueSource:
         self._net_prev: tuple[float, int, int] | None = None
         self.last_error: str = ""
         self.aida_ok = False
+        self.last_data: dict = {}
+        self._latest: dict = {}
+        self._thread = None
 
-    def snapshot(self) -> dict[str, aida64.Sensor]:
+    def _read_once(self) -> dict:
         try:
             data = aida64.read_sensors()
+            self.last_data = data
             self.aida_ok = bool(data)
             self.last_error = "" if data else "AIDA64 ne partage aucun capteur."
             return data
@@ -138,6 +144,22 @@ class ValueSource:
             self.aida_ok = False
             self.last_error = str(exc)
             return {}
+
+    def _reader(self):
+        """Lit les capteurs en continu en arrière-plan : l'envoi à l'écran n'attend plus la lecture."""
+        while True:
+            t0 = time.monotonic()
+            data = self._read_once()
+            self._latest = data
+            time.sleep(max(0.05, 0.4 - (time.monotonic() - t0)))
+
+    def snapshot(self) -> dict[str, aida64.Sensor]:
+        if self._thread is None:
+            import threading
+            self._latest = self._read_once()
+            self._thread = threading.Thread(target=self._reader, daemon=True)
+            self._thread.start()
+        return self._latest
 
     # ---------------------------------------------------------------- psutil
     def _net_rates(self) -> tuple[float, float]:
@@ -151,7 +173,47 @@ class ValueSource:
         dt = max(0.1, now - prev[0])
         return (c.bytes_sent - prev[1]) / 1024 / dt, (c.bytes_recv - prev[2]) / 1024 / dt
 
+    # ------------------------------------------------- Windows GPU (PDH counters)
+    _pdh = None
+
+    def _gpu_percent(self) -> float | None:
+        """Sum of the '3D' GPU engine utilisation, like the Task Manager (needs pywin32)."""
+        try:
+            import win32pdh
+        except Exception:
+            return None
+        try:
+            if self._pdh is None:
+                query = win32pdh.OpenQuery()
+                _, instances = win32pdh.EnumObjectItems(None, None, "GPU Engine", win32pdh.PERF_DETAIL_WIZARD)
+                counters = []
+                for inst in instances:
+                    if inst.endswith("engtype_3D"):
+                        path = win32pdh.MakeCounterPath((None, "GPU Engine", inst, None, -1, "Utilization Percentage"))
+                        counters.append(win32pdh.AddCounter(query, path))
+                win32pdh.CollectQueryData(query)
+                self._pdh = (query, counters, time.monotonic())
+                return None
+            query, counters, created = self._pdh
+            if time.monotonic() - created > 60:  # new processes create new instances: refresh the list
+                win32pdh.CloseQuery(query)
+                self._pdh = None
+                return self._gpu_percent()
+            win32pdh.CollectQueryData(query)
+            total = 0.0
+            for c in counters:
+                try:
+                    total += win32pdh.GetFormattedCounterValue(c, win32pdh.PDH_FMT_DOUBLE)[1]
+                except Exception:
+                    pass
+            return min(100.0, total)
+        except Exception:
+            self._pdh = None
+            return None
+
     def _fallback(self, metric: str | None) -> float | None:
+        if metric == "GPU_PERCENT":
+            return self._gpu_percent()
         if psutil is None or not metric:
             return None
         if metric == "CPU_PERCENT":

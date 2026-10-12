@@ -138,22 +138,49 @@ def find_lhm() -> Path | None:
     return None
 
 
+def _lhm_restart_script(exe: Path, port: int = 8085) -> str:
+    """Script PowerShell (exécuté en administrateur) : ferme LibreHardwareMonitor, attend qu'il soit vraiment
+    parti, active son serveur web, le relance puis vérifie que les capteurs sont servis (3 essais)."""
+    q = lambda p: str(p).replace("'", "''")  # noqa: E731
+    return f"""
+$exe = '{q(exe)}'; $dir = '{q(exe.parent)}'; $cfg = Join-Path $dir 'LibreHardwareMonitor.config'
+for ($k = 0; $k -lt 3; $k++) {{
+  Get-Process LibreHardwareMonitor -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+  for ($i = 0; $i -lt 30 -and (Get-Process LibreHardwareMonitor -ErrorAction SilentlyContinue); $i++) {{ Start-Sleep -Milliseconds 500 }}
+  Start-Sleep -Seconds 2
+  if (Test-Path $cfg) {{
+    $c = [IO.File]::ReadAllText($cfg)
+    $n = [regex]::Replace($c, '(key="runWebServerMenuItem"\\s+value=")false(")', '${{1}}true${{2}}')
+    if ($n -ne $c) {{ [IO.File]::WriteAllText($cfg, $n) }}
+  }}
+  Start-Process -FilePath $exe -WorkingDirectory $dir
+  $ok = $false
+  for ($j = 0; $j -lt 30 -and -not $ok; $j++) {{
+    Start-Sleep -Seconds 1
+    try {{ $r = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:{port}/data.json' -TimeoutSec 2
+          if ($r.Content -match 'Temperature') {{ $ok = $true }} }} catch {{ }}
+  }}
+  if ($ok) {{ break }}
+}}
+"""
+
+
 def restart_lhm() -> str:
-    """Ferme puis relance LibreHardwareMonitor en administrateur (une fenêtre de confirmation Windows)."""
+    """Ferme puis relance LibreHardwareMonitor en administrateur (une fenêtre de confirmation Windows).
+    Le script attend l'arrêt complet, active le serveur web et réessaie seul jusqu'à 3 fois."""
     exe = find_lhm()
     if exe is None:
         return "LibreHardwareMonitor.exe introuvable."
     if sys.platform != "win32":
         return "Seulement sous Windows."
+    import base64
     import ctypes
-    ps = ("Stop-Process -Name LibreHardwareMonitor -Force -ErrorAction SilentlyContinue; "
-          "Start-Sleep -Seconds 1; "
-          f"Start-Process -FilePath '{exe}' -WorkingDirectory '{exe.parent}'")
+    encoded = base64.b64encode(_lhm_restart_script(exe).encode("utf-16-le")).decode("ascii")
     rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe",
-                                             f'-NoProfile -WindowStyle Hidden -Command "{ps}"', None, 0)
+                                             f"-NoProfile -WindowStyle Hidden -EncodedCommand {encoded}", None, 0)
     if rc <= 32:
         return "Relance annulée."
-    return "LibreHardwareMonitor relancé (les températures reviennent dans quelques secondes)."
+    return "LibreHardwareMonitor relancé : les températures reviennent dans 10 à 30 secondes."
 
 
 # ------------------------------------------------------------ sauvegarde / restauration

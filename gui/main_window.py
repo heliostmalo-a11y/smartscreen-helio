@@ -71,6 +71,11 @@ class ScreenTab(QWidget):
         self.ck_auto = QCheckBox("Lancer avec Windows (discret, icône près de l'horloge)")
         self.ck_auto.setChecked(settings.autostart_enabled())
         self.ck_auto.toggled.connect(self.set_autostart)
+        self.ck_lhm = QCheckBox("Relancer automatiquement LibreHardwareMonitor si les températures manquent")
+        self.ck_lhm.setToolTip("Au démarrage de Windows, il arrive que les températures ne soient pas prêtes : "
+                               "le logiciel relance alors LibreHardwareMonitor (une fenêtre de confirmation Windows).")
+        self.ck_lhm.setChecked(bool(self.win.cfg.get("auto_lhm", True)))
+        self.ck_lhm.toggled.connect(self.set_auto_lhm)
         self.progress = QProgressBar()
         self.progress.setVisible(False)
         self.table = QTableWidget(0, 3)
@@ -93,6 +98,14 @@ class ScreenTab(QWidget):
         self.btn_lhm.setToolTip("Ferme et relance LibreHardwareMonitor (si les températures ne sont plus reçues)")
         self.btn_lhm.clicked.connect(self.restart_lhm)
         btns.addWidget(self.btn_lhm)
+        self.btn_save = QPushButton("Sauvegarder la configuration")
+        self.btn_save.setToolTip("Crée un fichier zip avec tes réglages et tes thèmes")
+        self.btn_save.clicked.connect(self.save_backup)
+        btns.addWidget(self.btn_save)
+        self.btn_restore = QPushButton("Restaurer…")
+        self.btn_restore.setToolTip("Recharge une sauvegarde (les thèmes existants ne sont jamais écrasés)")
+        self.btn_restore.clicked.connect(self.restore_backup)
+        btns.addWidget(self.btn_restore)
         btns.addStretch()
         lay = QVBoxLayout(self)
         self.lbl_preview = QLabel()              # aperçu du thème affiché sur l'écran
@@ -119,6 +132,7 @@ class ScreenTab(QWidget):
         lay.addWidget(self.progress)
         lay.addWidget(self.lbl_status)
         lay.addWidget(self.ck_auto)
+        lay.addWidget(self.ck_lhm)
         lay.addWidget(self._alert_box())
         lay.addWidget(QLabel("Valeurs envoyées à l'écran :"))
         lay.addWidget(self.table, 1)
@@ -374,6 +388,34 @@ class ScreenTab(QWidget):
                 elif it.text() != t:            # ne redessine que ce qui change
                     it.setText(t)
 
+    def save_backup(self):
+        default = str(Path.home() / "Documents" / f"SmartScreen_sauvegarde_{time.strftime('%Y%m%d_%H%M')}.zip")
+        path, _ = QFileDialog.getSaveFileName(self, "Sauvegarder la configuration", default, "Sauvegarde (*.zip)")
+        if not path:
+            return
+        try:
+            self.win.cfg = settings.load() | self.win.cfg      # réglages à jour
+            settings.save(self.win.cfg)
+            msg = settings.backup_config(path)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.warning(self, "Sauvegarde", f"La sauvegarde a échoué : {exc}")
+            return
+        QMessageBox.information(self, "Sauvegarde", msg)
+
+    def restore_backup(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Restaurer une sauvegarde", str(Path.home() / "Documents"), "Sauvegarde (*.zip)")
+        if not path:
+            return
+        if QMessageBox.question(self, "Restaurer", "Remplacer les réglages actuels par ceux de la sauvegarde ?\n"
+                                "(l'ancien fichier de réglages est gardé à côté, aucun thème n'est écrasé)") != QMessageBox.Yes:
+            return
+        try:
+            msg = settings.restore_config(path)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.warning(self, "Restauration", f"La restauration a échoué : {exc}")
+            return
+        QMessageBox.information(self, "Restauration", msg)
+
     def restart_lhm(self):
         msg = settings.restart_lhm()
         self.win.statusBar().showMessage(msg, 10000)
@@ -397,6 +439,10 @@ class ScreenTab(QWidget):
             QMessageBox.information(self, "Écran", "Choisis d'abord un thème dans l'onglet Thèmes.")
             return
         self.win.send_theme(active)
+
+    def set_auto_lhm(self, on: bool):
+        self.win.cfg["auto_lhm"] = bool(on)
+        settings.save(self.win.cfg)
 
     def set_autostart(self, on: bool):
         try:
@@ -582,6 +628,7 @@ class MainWindow(QMainWindow):
                 pass
         self.engine.alert = dict(self.cfg.get("alert", {}))
         self.engine.start()
+        self._start_lhm_guard()
 
         self.tabs = QTabWidget()
         migrate_variants(self)
@@ -609,6 +656,19 @@ class MainWindow(QMainWindow):
                 self, "Logiciel d'origine ouvert",
                 "Le logiciel « 3.5 Inch SmartMonitor » est encore lancé.\n"
                 "Ferme-le (icône près de l'horloge → Quitter), sinon les deux logiciels se disputent l'écran."))
+
+    def _start_lhm_guard(self):
+        """Relance LibreHardwareMonitor tout seul si les températures manquent après le démarrage."""
+        from core.lhm_guard import Guard
+
+        def ok():
+            eng = self.engine
+            if not (eng._thread and eng._thread.is_alive()):
+                return None
+            return bool(eng.source.aida_ok)
+
+        self._lhm_guard = Guard(ok, lambda: bool(self.cfg.get("auto_lhm", True)))
+        self._lhm_guard.start()
 
     # ------------------------------------------------------------------ tray
     def _make_tray(self):
